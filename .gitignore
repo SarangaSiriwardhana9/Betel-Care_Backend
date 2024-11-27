@@ -1,0 +1,28 @@
+# Python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE specific files
+.vscode/
+.idea/
+
+# Build files
+build/
+dist/
+.eggs/
+*.egg-info
+
+# Test files
+.pytest_cache/
+coverage/
+htmlcov/
+
+# Local configuration
+.env*
