@@ -39,9 +39,9 @@ def predict():
 
         # Return the predictions as a JSON response
         return jsonify({
-            'prediction_p': round_to_nearest_50(prediction_p[0]),
-            'prediction_kt': round_to_nearest_50(prediction_kt[0]),
-            'prediction_rkt': round_to_nearest_50(prediction_rkt[0])
+            'පීදුනු කොළ': round_to_nearest_50(prediction_p[0]),
+            'කෙටි කොළ': round_to_nearest_50(prediction_kt[0]),
+            'රෑන් කෙටි කොළ': round_to_nearest_50(prediction_rkt[0])
         })
         
     except Exception as e:
