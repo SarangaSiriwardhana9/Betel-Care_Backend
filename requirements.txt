@@ -1,7 +1,8 @@
-Flask
-joblib
-xgboost
-tensorflow
-numpy
-pandas
-scikit-learn
+Flask==3.1.0
+joblib==1.4.2
+xgboost==2.1.2
+tensorflow==2.18.0
+numpy==2.0.2
+pandas==2.2.3
+scikit-learn==1.5.2
+
