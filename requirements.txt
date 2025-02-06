@@ -5,4 +5,5 @@ tensorflow==2.18.0
 numpy==2.0.2
 pandas==2.2.3
 scikit-learn==1.5.2
+gunicorn==23.0.0
 
