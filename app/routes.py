@@ -15,7 +15,7 @@ def load_model(model_name):
 def round_to_nearest_50(value):
     return round(value / 50) * 50
 
-@api_bp.route('/predict', methods=['POST'])
+@api_bp.route('/predict/harvest', methods=['POST'])
 def predict():
     try:
         input_data = request.get_json()
@@ -38,9 +38,9 @@ def predict():
         prediction_rkt = predict_yield(model_rkt, processed_data)
 
         return jsonify({
-            'පීදුනු කොළ': round_to_nearest_50(prediction_p[0]),
-            'කෙටි කොළ': round_to_nearest_50(prediction_kt[0]),
-            'රෑන් කෙටි කොළ': round_to_nearest_50(prediction_rkt[0])
+            'P': round_to_nearest_50(prediction_p[0]),
+            'KT': round_to_nearest_50(prediction_kt[0]),
+            'RKT': round_to_nearest_50(prediction_rkt[0])
         })
         
     except Exception as e:
