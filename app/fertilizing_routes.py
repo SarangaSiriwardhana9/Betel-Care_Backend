@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify
 import json
 import numpy as np
 from datetime import datetime
-from app.fertilizing_model import predict_7day_fertilizing_suitability, convert_numpy_types
+from app.fertilizing_model import predict_7day_fertilizing_suitability, predict_today_fertilizing_suitability, convert_numpy_types
+from app.fertilizer_planner import fertilizer_planning_api
 
 fertilizing_bp = Blueprint('fertilizing', __name__)
 
@@ -77,4 +78,103 @@ def predict_fertilizing():
         
     except Exception as e:
         print("Error predicting fertilizing suitability:", str(e))
+        return jsonify({'error': str(e)}), 500
+
+@fertilizing_bp.route('/plan', methods=['POST'])
+def plan_fertilizing():
+    try:
+        # Get input data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid or missing JSON input'}), 400
+        
+        # Extract parameters
+        location = data.get('location', 'PUTTALAM')
+        rainfall_forecast = data.get('rainfall_forecast', [0.0] * 7)
+        fertilizer_history = data.get('fertilizer_history', [])
+        
+        # Validate location
+        if location not in ['PUTTALAM', 'KURUNEGALA']:
+            return jsonify({'error': 'Location must be either PUTTALAM or KURUNEGALA'}), 400
+        
+        # Validate rainfall forecast
+        if not isinstance(rainfall_forecast, list):
+            return jsonify({'error': 'rainfall_forecast must be a list of values'}), 400
+        
+        # Ensure we have 7 days of forecast
+        if len(rainfall_forecast) < 7:
+            rainfall_forecast = rainfall_forecast + [0.0] * (7 - len(rainfall_forecast))
+        elif len(rainfall_forecast) > 7:
+            rainfall_forecast = rainfall_forecast[:7]
+        
+        # Convert to float
+        rainfall_forecast = [float(r) for r in rainfall_forecast]
+        
+        # Validate fertilizer history
+        if not isinstance(fertilizer_history, list):
+            return jsonify({'error': 'fertilizer_history must be a list of applications'}), 400
+        
+        # Get fertilizer planning recommendation
+        recommendation = fertilizer_planning_api(
+            fertilizer_history, location, rainfall_forecast
+        )
+        
+        # Add request info to response
+        response = {
+            'location': location,
+            'forecast_start_date': datetime.now().strftime('%Y-%m-%d'),
+            'recommendation': recommendation
+        }
+        
+        # Convert NumPy types and return
+        response = convert_numpy_types(response)
+        return json.loads(json.dumps(response, cls=NumpyEncoder))
+        
+    except Exception as e:
+        print("Error in fertilizer planning:", str(e))
+        return jsonify({'error': str(e)}), 500
+
+@fertilizing_bp.route('/today', methods=['POST'])
+def today_fertilizing():
+    try:
+        # Get input data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid or missing JSON input'}), 400
+        
+        # Extract parameters
+        location = data.get('location', 'PUTTALAM')
+        rainfall = data.get('rainfall', 0.0)
+        
+        # Validate location
+        if location not in ['PUTTALAM', 'KURUNEGALA']:
+            return jsonify({'error': 'Location must be either PUTTALAM or KURUNEGALA'}), 400
+        
+        # Validate rainfall
+        try:
+            rainfall = float(rainfall)
+        except ValueError:
+            return jsonify({'error': 'Rainfall must be a number'}), 400
+        
+        # Get recommendation for today
+        recommendation = predict_today_fertilizing_suitability(location, rainfall)
+        
+        # Add location to response
+        response = {
+            'location': location,
+            'today': datetime.now().strftime('%Y-%m-%d'),
+            'rainfall': rainfall,
+            'suitable_for_fertilizing': recommendation.get('suitable_for_fertilizing', False),
+            'confidence': recommendation.get('confidence', 0),
+            'recommendation': recommendation.get('recommendation', 'Unknown')
+        }
+        
+        # Convert NumPy types to Python native types for JSON serialization
+        response = convert_numpy_types(response)
+        
+        # Return response
+        return json.loads(json.dumps(response, cls=NumpyEncoder))
+        
+    except Exception as e:
+        print("Error predicting today's fertilizing suitability:", str(e))
         return jsonify({'error': str(e)}), 500
