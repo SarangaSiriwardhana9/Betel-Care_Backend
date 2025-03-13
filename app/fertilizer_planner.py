@@ -83,6 +83,12 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
     if today_date is None:
         today_date = datetime.now()
     
+    # Check if it's after 6 PM
+    is_after_six_pm = today_date.hour >= 18
+    
+    # If it's after 6 PM, use tomorrow as the effective date for recommendations
+    effective_date = today_date + timedelta(days=1) if is_after_six_pm else today_date
+    
     # Parse history
     parsed_history = parse_fertilizer_history(history)
     
@@ -97,15 +103,21 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
         "weather_forecast": None,
         "alternative_date": None,
         "alternative_date_suitable": False,
-        "message": ""
+        "message": "",
+        "is_first_time": len(parsed_history) == 0,
+        "is_after_six_pm": is_after_six_pm
     }
     
     # If history is empty, recommend the default fertilizer with immediate application
     if not parsed_history:
         response["next_fertilizer"] = DEFAULT_FERTILIZER
-        response["recommended_date"] = today_date.strftime("%Y-%m-%d")
+        response["recommended_date"] = effective_date.strftime("%Y-%m-%d")
         response["date_in_forecast"] = True
-        response["message"] = f"No fertilization history found. Recommend starting with {DEFAULT_FERTILIZER}."
+        
+        if is_after_six_pm:
+            response["message"] = "පොහොර යෙදීම හෙටින් ආරම්භ කරන්න"  # Start fertilizing from tomorrow
+        else:
+            response["message"] = "පොහොර යෙදීම අදින් ආරම්භ කරන්න"  # Start fertilizing from today
     else:
         # Get the most recent fertilizer application
         last_application = parsed_history[0]
@@ -132,12 +144,18 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
         response["next_fertilizer"] = next_fertilizer
         response["recommended_date"] = recommended_date.strftime("%Y-%m-%d")
         
+        # Check if recommended date is today and it's after 6 PM
+        if recommended_date.date() == today_date.date() and is_after_six_pm:
+            # Move to tomorrow
+            recommended_date = recommended_date + timedelta(days=1)
+            response["recommended_date"] = recommended_date.strftime("%Y-%m-%d")
+            response["message"] = f"Next fertilization with {next_fertilizer} recommended tomorrow."
         # Check if recommended date has already passed
-        if recommended_date < today_date:
+        elif recommended_date < effective_date:
             response["date_has_passed"] = True
             response["message"] = f"Recommended date ({response['recommended_date']}) has already passed. Consider applying {next_fertilizer} soon."
         else:
-            days_until = (recommended_date - today_date).days
+            days_until = (recommended_date - effective_date).days
             response["message"] = f"Next fertilization with {next_fertilizer} recommended in {days_until} days."
     
     # If we have location and rainfall forecast, check weather suitability

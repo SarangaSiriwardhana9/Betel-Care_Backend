@@ -52,10 +52,15 @@ def predict_fertilizing():
         # Get fertilizing recommendations
         recommendations = predict_7day_fertilizing_suitability(location, rainfall_forecast)
         
-        # Add location to response
+        # Add location and current time information to response
+        current_time = datetime.now()
+        is_after_six_pm = current_time.hour >= 18
+        
         response = {
             'location': location,
-            'forecast_start_date': datetime.now().strftime('%Y-%m-%d'),
+            'forecast_start_date': current_time.strftime('%Y-%m-%d'),
+            'current_time': current_time.strftime('%H:%M:%S'),
+            'is_after_six_pm': is_after_six_pm,
             'daily_recommendations': recommendations
         }
         
@@ -120,9 +125,12 @@ def plan_fertilizing():
         )
         
         # Add request info to response
+        current_time = datetime.now()
         response = {
             'location': location,
-            'forecast_start_date': datetime.now().strftime('%Y-%m-%d'),
+            'forecast_start_date': current_time.strftime('%Y-%m-%d'),
+            'current_time': current_time.strftime('%H:%M:%S'),
+            'is_after_six_pm': current_time.hour >= 18,
             'recommendation': recommendation
         }
         
@@ -159,15 +167,26 @@ def today_fertilizing():
         # Get recommendation for today
         recommendation = predict_today_fertilizing_suitability(location, rainfall)
         
-        # Add location to response
+        # Check if it's after 6 PM
+        current_time = datetime.now()
+        is_after_six_pm = current_time.hour >= 18
+        
+        # Add location and time info to response
         response = {
             'location': location,
-            'today': datetime.now().strftime('%Y-%m-%d'),
+            'today': current_time.strftime('%Y-%m-%d'),
+            'current_time': current_time.strftime('%H:%M:%S'),
+            'is_after_six_pm': is_after_six_pm,
             'rainfall': rainfall,
-            'suitable_for_fertilizing': recommendation.get('suitable_for_fertilizing', False),
+            'suitable_for_fertilizing': recommendation.get('suitable_for_fertilizing', False) and not is_after_six_pm,
             'confidence': recommendation.get('confidence', 0),
             'recommendation': recommendation.get('recommendation', 'Unknown')
         }
+        
+        # If it's after 6 PM, modify the recommendation
+        if is_after_six_pm and response['suitable_for_fertilizing']:
+            response['suitable_for_fertilizing'] = False
+            response['recommendation'] = "Too late for fertilizing today, check tomorrow's forecast"
         
         # Convert NumPy types to Python native types for JSON serialization
         response = convert_numpy_types(response)
