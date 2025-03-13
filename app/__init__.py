@@ -1,5 +1,3 @@
-import tensorflow as tf
-
 from flask import Flask
 from app.routes import api_bp
 
