@@ -1,4 +1,4 @@
-app = "Betle-Care-backend"
+app = "betle-care-backend"
 
 [build]
   builtin = "python"
