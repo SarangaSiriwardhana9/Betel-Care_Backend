@@ -1,6 +1,3 @@
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU, force CPU for TensorFlow
-
 import tensorflow as tf
 
 from flask import Flask
