@@ -24,7 +24,7 @@ def predict_fertilizing():
         # Get input data from request
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'Invalid or missing JSON input'}), 400
+            return jsonify({'error': 'දත්ත ආදානය අවලංගුයි හෝ නොමැත'}), 400
         
         # Extract parameters with default values
         location = data.get('location', 'PUTTALAM')  # Default to PUTTALAM if not specified
@@ -32,11 +32,11 @@ def predict_fertilizing():
         
         # Validate location
         if location not in ['PUTTALAM', 'KURUNEGALA']:
-            return jsonify({'error': 'Location must be either PUTTALAM or KURUNEGALA'}), 400
+            return jsonify({'error': 'ස්ථානය PUTTALAM හෝ KURUNEGALA විය යුතුය'}), 400
         
         # Validate rainfall forecast
         if not isinstance(rainfall_forecast, list):
-            return jsonify({'error': 'rainfall_forecast must be a list of 7 values'}), 400
+            return jsonify({'error': 'වර්ෂාපතන පුරෝකථනය අගයන් 7ක ලැයිස්තුවක් විය යුතුය'}), 400
         
         # Ensure we have 7 days of forecast
         if len(rainfall_forecast) < 7:
@@ -73,7 +73,7 @@ def predict_fertilizing():
             response['has_suitable_days'] = True
         else:
             response['has_suitable_days'] = False
-            response['no_suitable_days_reason'] = "No suitable days for fertilizing in the next 7 days"
+            response['no_suitable_days_reason'] = "ඉදිරි දින 7 තුළ පොහොර යෙදීමට සුදුසු දින නොමැත"
         
         # Convert NumPy types to Python native types for JSON serialization
         response = convert_numpy_types(response)
@@ -83,7 +83,7 @@ def predict_fertilizing():
         
     except Exception as e:
         print("Error predicting fertilizing suitability:", str(e))
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'පොහොර යෙදීමේ යෝග්‍යතාව පුරෝකථනය කිරීමේ දෝෂයකි: {str(e)}'}), 500
 
 @fertilizing_bp.route('/plan', methods=['POST'])
 def plan_fertilizing():
@@ -91,7 +91,7 @@ def plan_fertilizing():
         # Get input data from request
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'Invalid or missing JSON input'}), 400
+            return jsonify({'error': 'දත්ත ආදානය අවලංගුයි හෝ නොමැත'}), 400
         
         # Extract parameters
         location = data.get('location', 'PUTTALAM')
@@ -100,11 +100,11 @@ def plan_fertilizing():
         
         # Validate location
         if location not in ['PUTTALAM', 'KURUNEGALA']:
-            return jsonify({'error': 'Location must be either PUTTALAM or KURUNEGALA'}), 400
+            return jsonify({'error': 'ස්ථානය PUTTALAM හෝ KURUNEGALA විය යුතුය'}), 400
         
         # Validate rainfall forecast
         if not isinstance(rainfall_forecast, list):
-            return jsonify({'error': 'rainfall_forecast must be a list of values'}), 400
+            return jsonify({'error': 'වර්ෂාපතන පුරෝකථනය අගයන් ලැයිස්තුවක් විය යුතුය'}), 400
         
         # Ensure we have 7 days of forecast
         if len(rainfall_forecast) < 7:
@@ -117,7 +117,7 @@ def plan_fertilizing():
         
         # Validate fertilizer history
         if not isinstance(fertilizer_history, list):
-            return jsonify({'error': 'fertilizer_history must be a list of applications'}), 400
+            return jsonify({'error': 'පොහොර ඉතිහාසය යෙදීම් ලැයිස්තුවක් විය යුතුය'}), 400
         
         # Get fertilizer planning recommendation
         recommendation = fertilizer_planning_api(
@@ -140,7 +140,7 @@ def plan_fertilizing():
         
     except Exception as e:
         print("Error in fertilizer planning:", str(e))
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'පොහොර සැලසුම් කිරීමේ දෝෂයකි: {str(e)}'}), 500
 
 @fertilizing_bp.route('/today', methods=['POST'])
 def today_fertilizing():
@@ -148,7 +148,7 @@ def today_fertilizing():
         # Get input data from request
         data = request.get_json()
         if not data:
-            return jsonify({'error': 'Invalid or missing JSON input'}), 400
+            return jsonify({'error': 'දත්ත ආදානය අවලංගුයි හෝ නොමැත'}), 400
         
         # Extract parameters
         location = data.get('location', 'PUTTALAM')
@@ -156,13 +156,13 @@ def today_fertilizing():
         
         # Validate location
         if location not in ['PUTTALAM', 'KURUNEGALA']:
-            return jsonify({'error': 'Location must be either PUTTALAM or KURUNEGALA'}), 400
+            return jsonify({'error': 'ස්ථානය PUTTALAM හෝ KURUNEGALA විය යුතුය'}), 400
         
         # Validate rainfall
         try:
             rainfall = float(rainfall)
         except ValueError:
-            return jsonify({'error': 'Rainfall must be a number'}), 400
+            return jsonify({'error': 'වර්ෂාපතනය සංඛ්‍යාවක් විය යුතුය'}), 400
         
         # Get recommendation for today
         recommendation = predict_today_fertilizing_suitability(location, rainfall)
@@ -180,13 +180,15 @@ def today_fertilizing():
             'rainfall': rainfall,
             'suitable_for_fertilizing': recommendation.get('suitable_for_fertilizing', False) and not is_after_six_pm,
             'confidence': recommendation.get('confidence', 0),
-            'recommendation': recommendation.get('recommendation', 'Unknown')
+            'recommendation': recommendation.get('recommendation', 'නොදන්නා'),
+            'day_name': recommendation.get('day_name', ''),
+            'day_name_sinhala': recommendation.get('day_name_sinhala', '')
         }
         
         # If it's after 6 PM, modify the recommendation
         if is_after_six_pm and response['suitable_for_fertilizing']:
             response['suitable_for_fertilizing'] = False
-            response['recommendation'] = "Too late for fertilizing today, check tomorrow's forecast"
+            response['recommendation'] = "අද පොහොර යෙදීමට ප්‍රමාද වැඩිය, හෙට උදේ බලන්න"
         
         # Convert NumPy types to Python native types for JSON serialization
         response = convert_numpy_types(response)
@@ -196,4 +198,4 @@ def today_fertilizing():
         
     except Exception as e:
         print("Error predicting today's fertilizing suitability:", str(e))
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'අද පොහොර යෙදීමේ යෝග්‍යතාව පුරෝකථනය කිරීමේ දෝෂයකි: {str(e)}'}), 500

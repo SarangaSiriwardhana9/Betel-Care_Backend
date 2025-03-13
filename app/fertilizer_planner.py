@@ -1,6 +1,25 @@
 import datetime
 from datetime import datetime, timedelta
-from app.fertilizing_model import predict_7day_fertilizing_suitability
+from app.fertilizing_model import predict_7day_fertilizing_suitability, SINHALA_DAY_NAMES
+
+# Define fertilizer names in both English and Sinhala
+FERTILIZER_NAMES = {
+    "Gliricidia leaves": "ග්ලිරිසීඩියා කොල",
+    "Cow dung": "ගොම පොහොර",
+    "NPK (10-10-10)": "NPK 10 අනුපාතයට",
+    "Chicken manure": "කුකුල් පොහොර",
+    "Compost": "කොම්පෝස්ට්"
+}
+
+# Reverse mapping for English to Sinhala
+ENGLISH_TO_SINHALA = {
+    english: sinhala for english, sinhala in FERTILIZER_NAMES.items()
+}
+
+# Sinhala to English mapping
+SINHALA_TO_ENGLISH = {
+    sinhala: english for english, sinhala in FERTILIZER_NAMES.items()
+}
 
 # Define fertilizer rotation and waiting periods (in days)
 FERTILIZER_ROTATION = {
@@ -15,11 +34,27 @@ FERTILIZER_ROTATION = {
     "NPK (10-10-10)": {
         "next": "Gliricidia leaves",
         "wait_days": 120  # 4 months
+    },
+    "Chicken manure": {
+        "next": "Compost",
+        "wait_days": 60  # 2 months
+    },
+    "Compost": {
+        "next": "Gliricidia leaves",
+        "wait_days": 90  # 3 months
     }
 }
 
 # Default fertilizer to start with if no history is available
 DEFAULT_FERTILIZER = "Gliricidia leaves"
+
+def get_sinhala_name(english_name):
+    """Convert English fertilizer name to Sinhala"""
+    return ENGLISH_TO_SINHALA.get(english_name, english_name)
+
+def get_english_name(sinhala_name):
+    """Convert Sinhala fertilizer name to English"""
+    return SINHALA_TO_ENGLISH.get(sinhala_name, sinhala_name)
 
 def parse_fertilizer_history(history):
     """
@@ -47,6 +82,9 @@ def parse_fertilizer_history(history):
             if not date_str or not fertilizer:
                 continue
             
+            # Check if fertilizer is in Sinhala and convert to English for processing
+            english_fertilizer = get_english_name(fertilizer)
+            
             # Try different date formats
             date_obj = None
             for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"):
@@ -59,7 +97,7 @@ def parse_fertilizer_history(history):
             if date_obj:
                 parsed_history.append({
                     "date": date_obj,
-                    "fertilizer": fertilizer
+                    "fertilizer": english_fertilizer
                 })
         except Exception as e:
             print(f"Error parsing fertilizer history entry: {e}")
@@ -96,6 +134,7 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
     response = {
         "last_application": None,
         "next_fertilizer": None,
+        "next_fertilizer_sinhala": None,
         "recommended_date": None,
         "date_in_forecast": False,
         "date_has_passed": False,
@@ -111,6 +150,7 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
     # If history is empty, recommend the default fertilizer with immediate application
     if not parsed_history:
         response["next_fertilizer"] = DEFAULT_FERTILIZER
+        response["next_fertilizer_sinhala"] = get_sinhala_name(DEFAULT_FERTILIZER)
         response["recommended_date"] = effective_date.strftime("%Y-%m-%d")
         response["date_in_forecast"] = True
         
@@ -121,9 +161,13 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
     else:
         # Get the most recent fertilizer application
         last_application = parsed_history[0]
+        last_fertilizer_english = last_application["fertilizer"]
+        last_fertilizer_sinhala = get_sinhala_name(last_fertilizer_english)
+        
         response["last_application"] = {
             "date": last_application["date"].strftime("%Y-%m-%d"),
-            "fertilizer": last_application["fertilizer"]
+            "fertilizer": last_fertilizer_english,
+            "fertilizer_sinhala": last_fertilizer_sinhala
         }
         
         # Find the next fertilizer in the rotation
@@ -133,15 +177,18 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
         if last_fertilizer not in FERTILIZER_ROTATION:
             next_fertilizer = DEFAULT_FERTILIZER
             wait_days = 30  # Default wait time for unknown fertilizers
-            response["message"] = f"Unknown last fertilizer: {last_fertilizer}. Defaulting to {next_fertilizer} after 30 days."
+            response["message"] = f"අඳුනා නොගත් අවසන් පොහොර වර්ගය: {last_fertilizer_sinhala}. දින 30 කින් {get_sinhala_name(next_fertilizer)} යොදන්න."
         else:
             # Get next fertilizer and wait period from rotation chart
             next_fertilizer = FERTILIZER_ROTATION[last_fertilizer]["next"]
             wait_days = FERTILIZER_ROTATION[last_fertilizer]["wait_days"]
         
+        # Set the next fertilizer in both English and Sinhala
+        response["next_fertilizer"] = next_fertilizer
+        response["next_fertilizer_sinhala"] = get_sinhala_name(next_fertilizer)
+        
         # Calculate the recommended date for the next application
         recommended_date = last_application["date"] + timedelta(days=wait_days)
-        response["next_fertilizer"] = next_fertilizer
         response["recommended_date"] = recommended_date.strftime("%Y-%m-%d")
         
         # Check if recommended date is today and it's after 6 PM
@@ -149,14 +196,14 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
             # Move to tomorrow
             recommended_date = recommended_date + timedelta(days=1)
             response["recommended_date"] = recommended_date.strftime("%Y-%m-%d")
-            response["message"] = f"Next fertilization with {next_fertilizer} recommended tomorrow."
+            response["message"] = f"හෙට {get_sinhala_name(next_fertilizer)} යෙදීම නිර්දේශ කරයි."
         # Check if recommended date has already passed
         elif recommended_date < effective_date:
             response["date_has_passed"] = True
-            response["message"] = f"Recommended date ({response['recommended_date']}) has already passed. Consider applying {next_fertilizer} soon."
+            response["message"] = f"නිර්දේශිත දිනය ({response['recommended_date']}) දැනටමත් ගෙවී ගොස් ඇත. {get_sinhala_name(next_fertilizer)} ඉක්මනින් යොදන්න."
         else:
             days_until = (recommended_date - effective_date).days
-            response["message"] = f"Next fertilization with {next_fertilizer} recommended in {days_until} days."
+            response["message"] = f"මීළඟ {get_sinhala_name(next_fertilizer)} යෙදීම දින {days_until} කින් නිර්දේශ කරයි."
     
     # If we have location and rainfall forecast, check weather suitability
     if location and rainfall_forecast and len(rainfall_forecast) > 0:
@@ -166,7 +213,7 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
         # Check if the weather forecast contains an error
         if len(weather_forecast) == 1 and 'error' in weather_forecast[0]:
             print(f"Weather forecast error: {weather_forecast[0]['error']}")
-            response["message"] += " Could not get weather suitability information due to an error."
+            response["message"] += " දෝෂයක් නිසා කාලගුණ යෝග්‍යතා තොරතුරු ලබා ගත නොහැක."
             response["weather_forecast"] = weather_forecast
         else:
             response["weather_forecast"] = weather_forecast
@@ -189,9 +236,9 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
                             response["weather_suitable"] = day["suitable_for_fertilizing"]
                             
                             if response["weather_suitable"]:
-                                response["message"] += f" Weather on {recommended_date_str} is suitable for fertilizing."
+                                response["message"] += f" {recommended_date_str} දිනයේ කාලගුණය පොහොර යෙදීමට සුදුසුයි."
                             else:
-                                response["message"] += f" Weather on {recommended_date_str} is NOT suitable for fertilizing."
+                                response["message"] += f" {recommended_date_str} දිනයේ කාලගුණය පොහොර යෙදීමට සුදුසු නොවේ."
                             break
                 
                 # If date has passed or is not suitable, find an alternative date
@@ -206,19 +253,19 @@ def get_next_fertilizer_recommendation(history, today_date=None, location=None, 
                         response["alternative_date_suitable"] = True
                         
                         if response["date_has_passed"]:
-                            response["message"] += f" Recommend applying {next_fertilizer} on {best_day['date']} which has favorable weather."
+                            response["message"] += f" හොඳ කාලගුණයක් සහිත {best_day['date']} දිනයේ {get_sinhala_name(next_fertilizer)} යෙදීම නිර්දේශ කරයි."
                         else:
-                            response["message"] += f" Consider postponing to {best_day['date']} for better weather conditions."
+                            response["message"] += f" වඩා හොඳ කාලගුණික තත්වයන් සඳහා {best_day['date']} දක්වා කල් දැමීම සලකා බලන්න."
                     else:
-                        response["message"] += " No suitable days found in the current weather forecast. Consider waiting for better conditions."
+                        response["message"] += " වත්මන් කාලගුණ අනාවැකියේ සුදුසු දින හමු නොවීය. වඩා හොඳ තත්වයන් සඳහා රැඳී සිටීමට සලකා බලන්න."
                 
                 # If recommended date is beyond the forecast period
                 if not response["date_in_forecast"] and not response["date_has_passed"]:
-                    response["message"] += f" The recommended date is beyond the current 7-day forecast period."
+                    response["message"] += f" නිර්දේශිත දිනය වත්මන් දින 7 කාලගුණ අනාවැකිය ඉක්මවා ඇත."
                     
             except Exception as e:
                 print(f"Error processing weather forecast: {e}")
-                response["message"] += " Could not process weather suitability information due to an error."
+                response["message"] += " දෝෂයක් නිසා කාලගුණ යෝග්‍යතා තොරතුරු සැකසීමට නොහැකි විය."
     
     return response
 
@@ -251,5 +298,5 @@ def fertilizer_planning_api(history, location=None, rainfall_forecast=None):
         print(f"Error in fertilizer planning: {str(e)}")
         return {
             "error": str(e),
-            "message": "An error occurred while generating fertilizer recommendations."
+            "message": "පොහොර නිර්දේශ උත්පාදනය කිරීමේදී දෝෂයක් ඇති විය."
         }
