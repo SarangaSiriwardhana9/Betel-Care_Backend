@@ -1,7 +1,5 @@
 app = "betle-care-backend"
 
-[build]
-  builtin = "python"
 
 [env]
   PORT = "8080"
