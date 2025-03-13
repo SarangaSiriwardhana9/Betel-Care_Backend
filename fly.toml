@@ -1,3 +1,15 @@
+app = "Betle-Care-backend"
+
 [build]
   builtin = "python"
-  python_version = "3.10"
+
+[env]
+  PORT = "8080"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
