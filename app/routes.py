@@ -16,6 +16,11 @@ def load_model(model_name):
 def round_to_nearest_50(value):
     return round(value / 50) * 50
 
+@api_bp.route('/', methods=['GET'])
+def index():
+    return jsonify({'message': 'Welcome to the API!'})
+
+
 @api_bp.route('/predict/harvest', methods=['POST'])
 def predict():
     try:

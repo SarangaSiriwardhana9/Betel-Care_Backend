@@ -1,6 +1,3 @@
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-
 import joblib
 import tensorflow as tf
 
