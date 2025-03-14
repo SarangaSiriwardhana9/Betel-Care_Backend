@@ -6,7 +6,17 @@ import joblib
 import pandas as pd
 import os
 
+# Import your additional blueprints
+from app.watering_routes import watering_bp
+from app.fertilizing_routes import fertilizing_bp
+from app.protection_routes import protection_bp
+
 api_bp = Blueprint('api', __name__)
+
+# Register your additional blueprints with the main api_bp
+api_bp.register_blueprint(watering_bp, url_prefix='/watering')
+api_bp.register_blueprint(fertilizing_bp, url_prefix='/fertilizing')
+api_bp.register_blueprint(protection_bp, url_prefix='/protection')
 
 def load_model(model_name):
     model_path = os.path.join(os.path.dirname(__file__), '..', 'models', model_name)
