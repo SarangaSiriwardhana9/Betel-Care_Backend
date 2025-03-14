@@ -1,3 +1,4 @@
+from app.kavindi import DemandPredictionInput, PricePredictionInput, predict_demand_location, predict_market_demand, predict_price
 from flask import Blueprint, request, jsonify
 from app.model_manager import predict_yield
 from app.preprocess import preprocess_input_data
@@ -25,7 +26,12 @@ def load_model(model_name):
 def round_to_nearest_50(value):
     return round(value / 50) * 50
 
-@api_bp.route('/predict', methods=['POST'])
+@api_bp.route('/', methods=['GET'])
+def index():
+    return jsonify({'message': 'Welcome to the API!'})
+
+
+@api_bp.route('/predict/harvest', methods=['POST'])
 def predict():
     try:
         input_data = request.get_json()
@@ -48,11 +54,76 @@ def predict():
         prediction_rkt = predict_yield(model_rkt, processed_data)
 
         return jsonify({
-            'පීදුනු කොළ': round_to_nearest_50(prediction_p[0]),
-            'කෙටි කොළ': round_to_nearest_50(prediction_kt[0]),
-            'රෑන් කෙටි කොළ': round_to_nearest_50(prediction_rkt[0])
+            'P': round_to_nearest_50(prediction_p[0]),
+            'KT': round_to_nearest_50(prediction_kt[0]),
+            'RKT': round_to_nearest_50(prediction_rkt[0])
         })
         
     except Exception as e:
         print("Error:", str(e))
+
         return jsonify({'error': str(e)}), 500
+    
+
+#! Kavindi Routes starts here ===============>
+# Endpoint: Predict price per leaf
+@api_bp.post("/market/predict-price")
+def predict_price_endpoint():
+    data = request.get_json()  # Extract JSON data from the request
+
+    if not data:
+        return jsonify({"error": "No input data provided"}), 400
+
+    input_data = PricePredictionInput(**data)  # Convert JSON into an object
+
+    print('Price prediction triggered')
+
+    return jsonify({
+        "price": predict_price(
+            date=input_data.Date,
+            leaf_type=input_data.Leaf_Type,
+            leaf_size=input_data.Leaf_Size,
+            quality_grade=input_data.Quality_Grade,
+            no_of_leaves=input_data.No_of_Leaves,
+            location=input_data.Location,
+            season=input_data.Season
+        )
+    })
+
+
+# Endpoint: Predict highest demand location
+@api_bp.post("/market/predict-location")
+def predict_location_endpoint():
+
+    data = request.get_json()  # Extract JSON data from the request
+
+    if not data:
+        return jsonify({"error": "No input data provided"}), 400
+    
+    input_data = DemandPredictionInput(**data)  # Convert JSON into an object
+    
+    return jsonify({
+        "location": predict_demand_location(
+            date=input_data.Date,
+            no_of_leaves=input_data.No_of_Leaves,
+            leaf_type=input_data.Leaf_Type,
+            leaf_size=input_data.Leaf_Size,
+            quality_grade=input_data.Quality_Grade
+        )
+    })
+
+@api_bp.post("/market/predict-market-demand")
+def predict_market_demand_endpoint():
+    try:
+       return predict_market_demand()
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+# Health check endpoint
+@api_bp.get("/health")
+def health_check():
+    return {"status": "API is up and running!"}
+
+# Kavindi Routes ends here ==============================================>
