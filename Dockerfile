@@ -12,11 +12,11 @@ COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port for Railway
-EXPOSE 8081
+EXPOSE 5000
 
 # Define environment variables
 ENV FLASK_APP=app.py
 ENV FLASK_RUN_HOST=0.0.0.0
 
 # Run the application
-CMD ["gunicorn", "-b", "0.0.0.0:8081", "app:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
